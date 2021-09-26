@@ -1,4 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
+import { AfterViewInit, Component, ElementRef, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { NgModel } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 import { IProduct } from './product';
 import { ProductService } from './product.service';
@@ -7,34 +10,55 @@ import { ProductService } from './product.service';
     templateUrl: './product-list.component.html',
     styleUrls: ['./product-list.component.css']
 })
-export class ProductListComponent implements OnInit {
+export class ProductListComponent implements OnInit, AfterViewInit {
     pageTitle: string = 'Product List';
     showImage: boolean;
+    listFilter: string;
 
     imageWidth: number = 50;
     imageMargin: number = 2;
     errorMessage: string;
 
-    private _listFilter: string;
-    get listFilter(): string {
-      return this._listFilter;
-    }
+    @ViewChild('filterElement') filterElementRef: ElementRef;
+    private _filterInput: NgModel;
+    private _sub: Subscription;
 
-    set listFilter(value: string) {
-      this._listFilter = value;
-      this.performFilter(this.listFilter);
+    get filterInput(): NgModel{
+      return this._filterInput;
+    }
+    @ViewChild(NgModel)
+    set filterInput(value: NgModel){
+      this._filterInput = value;
+      if(this.filterInput && !this._sub){
+        this._sub = this.filterInput.valueChanges.subscribe(
+          () => this.performFilter(this.listFilter)
+        );
+      }
+      if(this.filterElementRef){
+        this.filterElementRef.nativeElement.focus();
+      }
     }
 
     filteredProducts: IProduct[];
     products: IProduct[];
 
-    constructor(private productService: ProductService) { }
+    constructor(private productService: ProductService) {
+    }
+
+    ngAfterViewInit(): void {
+      // this.filterInput.valueChanges.subscribe(
+      //   () => this.performFilter(this.listFilter)
+      // );
+      // if(this.filterElementRef.nativeElement){
+      //   this.filterElementRef.nativeElement.focus();
+      // }
+    }
 
     ngOnInit(): void {
         this.productService.getProducts().subscribe(
             (products: IProduct[]) => {
                 this.products = products;
-                this.performFilter(this._listFilter);
+                this.performFilter(this.listFilter);
             },
             (error: any) => this.errorMessage = <any>error
         );
